@@ -1,6 +1,7 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const User = require('./User');
+
+const User = require('../user');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT
@@ -67,5 +68,8 @@ const registerUser = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+router.post('/login', loginUser);
+router.post('/register', registerUser);
 
 module.exports = router;
