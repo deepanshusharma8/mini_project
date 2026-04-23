@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-function DomainCard({ category, domainId, isExpanded, onToggle }) {
+function DomainCard({ category, domainId, isExpanded, onToggle, onTopicClick }) {
   return (
     <div className={`cs-topic-card ${isExpanded ? 'expanded' : ''}`} id={`${domainId}-${category.id}`}>
       <div className="cs-card-header" onClick={onToggle}>
@@ -21,7 +22,12 @@ function DomainCard({ category, domainId, isExpanded, onToggle }) {
       <div className={`cs-card-body ${isExpanded ? 'show' : ''}`}>
         <ul className="cs-topic-list">
           {category.topics.map((topic, i) => (
-            <li key={i} className="cs-topic-item" style={{ animationDelay: `${i * 0.05}s` }}>
+            <li 
+              key={i} 
+              className="cs-topic-item" 
+              style={{ animationDelay: `${i * 0.05}s`, cursor: 'pointer' }}
+              onClick={() => onTopicClick(i)}
+            >
               <span className="cs-topic-number">{String(i + 1).padStart(2, '0')}</span>
               <span className="cs-topic-name">{topic}</span>
               <i className="fa-solid fa-arrow-right cs-topic-arrow"></i>
@@ -35,6 +41,7 @@ function DomainCard({ category, domainId, isExpanded, onToggle }) {
 
 function DomainSection({ domain }) {
   const [expandedId, setExpandedId] = useState(null)
+  const navigate = useNavigate()
 
   return (
     <section className="cs-section" id={`domain-${domain.id}`}>
@@ -53,6 +60,7 @@ function DomainSection({ domain }) {
             domainId={domain.id} 
             isExpanded={expandedId === category.id}
             onToggle={() => setExpandedId(expandedId === category.id ? null : category.id)}
+            onTopicClick={(topicIndex) => navigate(`/topic/${domain.id}/${category.id}/${topicIndex}`)}
           />
         ))}
       </div>

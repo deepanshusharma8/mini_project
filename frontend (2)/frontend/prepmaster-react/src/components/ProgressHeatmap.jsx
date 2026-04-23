@@ -1,115 +1,90 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useAuth } from '../hooks/useAuth'
+import { progressService } from '../services/progressService'
 
 function ProgressHeatmap() {
   const [activityData, setActivityData] = useState([])
   const [totalProblems, setTotalProblems] = useState(0)
   const [currentStreak, setCurrentStreak] = useState(0)
   const [maxStreak, setMaxStreak] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [savingDate, setSavingDate] = useState('')
+  const { isAuthenticated } = useAuth()
 
-  // Initialize data on mount
   useEffect(() => {
-    const data = []
-    let total = 0
-    let current = 0
-    let max = 0
-    let ongoingStreak = 0
-
-    // Load last 365 days
-    for (let i = 364; i >= 0; i--) {
-      const dateObj = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-      const dateKey = dateObj.toLocaleDateString('en-CA') // YYYY-MM-DD
-      
-      const storedLevel = localStorage.getItem(`prepmaster_heatmap_${dateKey}`)
-      const level = storedLevel ? parseInt(storedLevel, 10) : 0
-      
-      data.push({ date: dateKey, displayDate: dateObj.toLocaleDateString(), level })
-      
-      total += level
-
-      if (level > 0) {
-        ongoingStreak++
-        if (ongoingStreak > max) max = ongoingStreak
-      } else {
-        ongoingStreak = 0
+    const fetchProgress = async () => {
+      if (!isAuthenticated) {
+        setActivityData([])
+        setTotalProblems(0)
+        setCurrentStreak(0)
+        setMaxStreak(0)
+        return
       }
-      
-      // If we are at the most recent days, track current streak
-      if (i === 0 && level > 0) current = ongoingStreak
-      else if (i === 0 && level === 0 && ongoingStreak === 0) {
-        // If today is 0, check yesterday
-        if (data.length > 1 && data[data.length - 2].level > 0) {
-           // We'll approximate current streak if today is just missed
-           // For simplicity, we just use ongoingStreak calculation
-        }
+
+      try {
+        setLoading(true)
+        setError('')
+        const data = await progressService.getProgress()
+        const normalizedActivity = data.activity.map((entry) => {
+          const [year, monthStr, day] = entry.date.split('-')
+          const dateObj = new Date(year, parseInt(monthStr, 10) - 1, day)
+          return {
+            ...entry,
+            displayDate: dateObj.toLocaleDateString(),
+          }
+        })
+
+        setActivityData(normalizedActivity)
+        setTotalProblems(data.stats.totalSolved)
+        setCurrentStreak(data.stats.currentStreak)
+        setMaxStreak(data.stats.bestStreak)
+        window.dispatchEvent(new CustomEvent('prep_streak_updated', {
+          detail: { currentStreak: data.stats.currentStreak },
+        }))
+      } catch (err) {
+        setError(err.message || 'Failed to load progress activity')
+      } finally {
+        setLoading(false)
       }
     }
 
-    // A more accurate current streak calculation reading backwards from today
-    let actCurrentStreak = 0
-    for(let i = data.length - 1; i >= 0; i--) {
-       if (data[i].level > 0) {
-          actCurrentStreak++
-       } else if (i === data.length - 1) {
-          // If strictly today is 0, it's fine, we see if yesterday was active
-          continue
-       } else {
-          break
-       }
+    fetchProgress()
+  }, [isAuthenticated])
+
+  const handleCellClick = async (dateKey, currentLevel) => {
+    if (!isAuthenticated) {
+      setError('Please sign in to track progress from your real account data.')
+      return
     }
 
-    setActivityData(data)
-    setTotalProblems(total)
-    setCurrentStreak(actCurrentStreak)
-    setMaxStreak(max)
-    
-    // Dispatch event to update navbar streak
-    window.dispatchEvent(new Event('prep_streak_updated'))
-  }, [])
-
-  const handleCellClick = (dateKey, currentLevel, index) => {
-    // Cycle level: 0 -> 1 -> 2 -> 3 -> 4 -> 0
     const newLevel = currentLevel === 4 ? 0 : currentLevel + 1
-    
-    // Save to LocalStorage
-    localStorage.setItem(`prepmaster_heatmap_${dateKey}`, newLevel)
 
-    // Update State Optimistically
-    const newData = [...activityData]
-    newData[index].level = newLevel
-    setActivityData(newData)
+    try {
+      setSavingDate(dateKey)
+      setError('')
+      const data = await progressService.updateProgress(dateKey, newLevel)
+      const normalizedActivity = data.activity.map((entry) => {
+        const [year, monthStr, day] = entry.date.split('-')
+        const dateObj = new Date(year, parseInt(monthStr, 10) - 1, day)
+        return {
+          ...entry,
+          displayDate: dateObj.toLocaleDateString(),
+        }
+      })
 
-    // Recalculate Stats locally to avoid expensive full re-render loop
-    let newTotal = 0
-    let newMax = 0
-    let ongoingStreak = 0
-    
-    newData.forEach(day => {
-      newTotal += day.level
-      if (day.level > 0) {
-        ongoingStreak++
-        if (ongoingStreak > newMax) newMax = ongoingStreak
-      } else {
-        ongoingStreak = 0
-      }
-    })
-
-    let actCurrentStreak = 0
-    for(let i = newData.length - 1; i >= 0; i--) {
-       if (newData[i].level > 0) {
-          actCurrentStreak++
-       } else if (i === newData.length - 1) {
-          continue
-       } else {
-          break
-       }
+      setActivityData(normalizedActivity)
+      setTotalProblems(data.stats.totalSolved)
+      setCurrentStreak(data.stats.currentStreak)
+      setMaxStreak(data.stats.bestStreak)
+      window.dispatchEvent(new CustomEvent('prep_streak_updated', {
+        detail: { currentStreak: data.stats.currentStreak },
+      }))
+    } catch (err) {
+      setError(err.message || 'Failed to update progress activity')
+    } finally {
+      setSavingDate('')
     }
-
-    setTotalProblems(newTotal)
-    setCurrentStreak(actCurrentStreak)
-    setMaxStreak(newMax)
-    
-    // Dispatch event to update navbar streak globally
-    window.dispatchEvent(new Event('prep_streak_updated'))
   }
 
   const monthLabels = []
@@ -137,11 +112,16 @@ function ProgressHeatmap() {
         </span>
         <h2 className="section-title">Your Progress Activity</h2>
         <p className="cs-section-desc">
-          Click any box below to log today's practice and build your streak!
+          {isAuthenticated
+            ? "Click any box below to log today's practice and build your streak!"
+            : 'Sign in to load and save your real database-backed progress history.'}
         </p>
       </div>
 
       <div className="heatmap-container">
+        {loading && <div className="loading-message">Loading progress activity...</div>}
+        {error && <div className="error-message">{error}</div>}
+
         <div className="heatmap-stats">
           <div className="stat-card">
             <span className="stat-value">{totalProblems}</span>
@@ -177,9 +157,9 @@ function ProgressHeatmap() {
               {activityData.map((day, idx) => (
                 <div 
                   key={idx} 
-                  className={`heatmap-cell level-${day.level}`} 
+                  className={`heatmap-cell level-${day.level} ${savingDate === day.date ? 'is-saving' : ''}`} 
                   title={`${day.displayDate}: Level ${day.level} Activity. Click to update!`}
-                  onClick={() => handleCellClick(day.date, day.level, idx)}
+                  onClick={() => handleCellClick(day.date, day.level)}
                 ></div>
               ))}
             </div>
