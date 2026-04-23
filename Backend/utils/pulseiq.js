@@ -1,14 +1,14 @@
 const PULSEIQ_API_KEY = process.env.PULSEIQ_API_KEY;
-const PULSEIQ_PROJECT_ID = process.env.PULSEIQ_PROJECT_ID || '69ea6b8b2051b66d00a63e5b';
+const PULSEIQ_PROJECT_ID = process.env.PULSEIQ_PROJECT_ID || '69ea80d090498114ea9f81e3';
 const PULSEIQ_ENDPOINT = process.env.PULSEIQ_ENDPOINT || 'https://pulseiq-ffio.onrender.com/api/ingest/event';
 
 async function track(eventName, userId = null, properties = {}, anonymousId = 'server_event') {
   if (!PULSEIQ_API_KEY || !eventName) {
-    return;
+    return false;
   }
 
   try {
-    await fetch(PULSEIQ_ENDPOINT, {
+    const response = await fetch(PULSEIQ_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,7 +22,11 @@ async function track(eventName, userId = null, properties = {}, anonymousId = 's
         properties,
       }),
     });
-  } catch {}
+
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 module.exports = { track };

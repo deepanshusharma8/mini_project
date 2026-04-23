@@ -18,7 +18,7 @@ function PulseIQRouteTracker() {
 
     lastTrackedPath = path
 
-    pulseiqService.track('page_view', user?._id || null, {
+    pulseiqService.trackPageView(user?._id || null, {
       path,
       title: document.title,
       referrer: document.referrer || undefined,

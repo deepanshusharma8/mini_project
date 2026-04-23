@@ -27,5 +27,17 @@ export const pulseiqService = {
     }
   },
 
+  identify: async (userId, traits = {}) => {
+    if (!userId) {
+      return
+    }
+
+    await pulseiqService.track('identify', userId, traits)
+  },
+
+  trackPageView: async (userId = null, properties = {}) => {
+    await pulseiqService.track('page_view', userId, properties)
+  },
+
   getAnonymousId,
 }

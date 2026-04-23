@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true)
       const userData = await authService.login(email, password)
       setUser(userData)
-      pulseiqService.track('identify', userData._id, {
+      pulseiqService.identify(userData._id, {
         email: userData.email,
         username: userData.username,
       })
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true)
       const userData = await authService.register(name, email, password)
       setUser(userData)
-      pulseiqService.track('identify', userData._id, {
+      pulseiqService.identify(userData._id, {
         email: userData.email,
         username: userData.username,
       })

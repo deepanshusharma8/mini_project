@@ -4,6 +4,7 @@ import ThemeToggle from './ThemeToggle'
 import AuthModal from './AuthModal'
 import ConfirmLogoutModal from './ConfirmLogoutModal'
 import { useAuth } from '../hooks/useAuth'
+import { pulseiqService } from '../services/pulseiqService'
 
 function Navbar({ publicOnly = false }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -105,7 +106,14 @@ function Navbar({ publicOnly = false }) {
               </button>
             </div>
           ) : (
-            <button className="btn-primary-sm" id="signin-btn" onClick={() => setIsAuthModalOpen(true)}>
+            <button
+              className="btn-primary-sm"
+              id="signin-btn"
+              onClick={() => {
+                pulseiqService.track('signin_click', null, { source: 'navbar' })
+                setIsAuthModalOpen(true)
+              }}
+            >
               Sign In
             </button>
           )}
